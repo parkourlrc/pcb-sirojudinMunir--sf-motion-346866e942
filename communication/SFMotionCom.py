@@ -221,7 +221,7 @@ class SFMotion:
             self.get_motor_param()
             self.set_foc_bandwidth(500)
             self.set_start_calibrate_abs_encoder()
-            self.set_pid_speed(0.005, 0.8, 10)
+            self.set_pid_speed(0.008, 0.8, 10)
             self.set_pid_position(10, 0, 0, 1000)
 
     def get_motor_param(self):

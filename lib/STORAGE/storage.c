@@ -89,6 +89,9 @@ void storage_default_config(storage_t *s) {
     s->memory.encoder_config.pll_filt_bandwidth = 500.0f;
     s->memory.encoder_config.pll_filt_damping_ratio = 0.7f;
     memset(s->memory.encoder_config.error_comp_deg, 0, sizeof(s->memory.encoder_config.error_comp_deg));
+    
+    s->memory.cogging_torque.enable = 0;
+    memset(s->memory.cogging_torque.current_LUT, 0, sizeof(s->memory.cogging_torque.current_LUT));
 }
 
 void storage_copy_to_local(storage_t *s, foc_t *hfoc) {
@@ -143,6 +146,8 @@ void storage_copy_to_local(storage_t *s, foc_t *hfoc) {
 
     hfoc->motor.vbus_sense_gain = s->memory.voltage_sens.scale;
     hfoc->motor.vbus_sense_offset = s->memory.voltage_sens.v_offset;
+    
+    hfoc->cogging_current_comp_enable = s->memory.cogging_torque.enable;
 }
 
 void storage_copy_from_local(storage_t *s, foc_t *hfoc) {
@@ -205,4 +210,6 @@ void storage_copy_from_local(storage_t *s, foc_t *hfoc) {
 
     s->memory.voltage_sens.scale = hfoc->motor.vbus_sense_gain;
     s->memory.voltage_sens.v_offset = hfoc->motor.vbus_sense_offset;
+    
+    s->memory.cogging_torque.enable = hfoc->cogging_current_comp_enable;
 }

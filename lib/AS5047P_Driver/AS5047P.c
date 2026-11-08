@@ -33,6 +33,8 @@ void AS5047P_spi_config(AS5047P_t *encd, int (*spi_transfer)(uint8_t*, uint8_t*,
 void AS5047P_init(AS5047P_t *encd, sensor_dir_t dir, float scale) {
     encd->dir = dir;
     encd->count_to_deg_scale = scale;
+    encd->last_count_raw = 0;
+    encd->countinuous_count = 0;
 }
 
 void AS5047P_set_pll_filter(AS5047P_t *encd, float bw_hz, float damping_ratio, float Ts) {
@@ -44,12 +46,11 @@ static int AS5047P_start(AS5047P_t *encd) {
     uint16_t cmd = AS5047P_READ_CMD | AS5047P_REG_ANGLE;
     cmd |= (calc_even_parity(cmd) << 15);  // bit 15 parity
 
-    uint8_t tx_buf[2];
-    tx_buf[0] = (uint8_t)(cmd >> 8);
-    tx_buf[1] = (uint8_t)(cmd & 0xFF);
+    encd->spi_tx_buffer[0] = (uint8_t)(cmd >> 8);
+    encd->spi_tx_buffer[1] = (uint8_t)(cmd & 0xFF);
 
 	encd->spi_cs(0);
-    if (encd->spi_transfer(tx_buf, encd->spi_rx_buffer, 2) != 0) {
+    if (encd->spi_transfer(encd->spi_tx_buffer, encd->spi_rx_buffer, 2) != 0) {
         encd->spi_cs(1);
         return -1;
     }
@@ -111,7 +112,7 @@ void AS5047P_set_spi_transfer_done(AS5047P_t *encd) {
 }
 
 float AS5047P_get_degree(AS5047P_t *encd) {
-    float deg = encd->count_filt.estimate_position * encd->count_to_deg_scale;
+    float deg = encd->count_raw * encd->count_to_deg_scale;
     deg = fmodf(deg, 360.0f);
     if (deg < 0.0f) {
         deg += 360.0f;
@@ -125,6 +126,6 @@ float AS5047P_get_rpm(AS5047P_t *encd) {
 }
 
 float AS5047P_get_continuous_degree(AS5047P_t *encd) {
-    return encd->count_filt.estimate_position * encd->count_to_deg_scale;
+    return encd->countinuous_count * encd->count_to_deg_scale;
 }
 

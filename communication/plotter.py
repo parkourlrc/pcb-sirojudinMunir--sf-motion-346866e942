@@ -208,7 +208,7 @@ class DataAcquisitionThread(QtCore.QThread):
         self.wait()
 
 class LivePlotter(QtWidgets.QMainWindow):
-    def __init__(self, max_points=1000, port=None, baudrate=115200, node_id=0x00):
+    def __init__(self, max_points=1024, port=None, baudrate=115200, node_id=0x00):
         super().__init__()
         
         self.max_points = max_points
@@ -460,6 +460,15 @@ class LivePlotter(QtWidgets.QMainWindow):
             self.status_label.setText(f"Connected to {port} at {baudrate} baud")
             
             print("Serial connection established successfully")
+
+            # self.motor.enable_streaming(motor.channel.vd)
+            # self.motor.enable_streaming(motor.channel.vq)
+            # self.motor.enable_streaming(motor.channel.id)
+            # self.motor.enable_streaming(motor.channel.iq)
+            # self.motor.enable_streaming(motor.channel.e_rad)
+            # self.motor.enable_streaming(motor.channel.m_angle_rad)
+            # self.motor.enable_streaming(motor.channel.m_angle_rad_comp)
+            # self.motor.enable_streaming(motor.channel.actual_rpm)
             
         except serial.SerialException as e:
             QtWidgets.QMessageBox.critical(

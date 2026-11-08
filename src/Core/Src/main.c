@@ -224,6 +224,7 @@ static void init_foc(void) {
                           motor1_as5047p_get_continuous_mech_deg,
                           motor1_as5047p_get_rpm, 
                           hstorage1.memory.encoder_config.error_comp_deg);
+  foc_cogging_comp_init(&hfoc1, hstorage1.memory.cogging_torque.current_LUT);
 
   link_can_init(hfoc1.motor.device_id);
   sfm_usb_com_init(&hsfm_usb_com, usb_send_data);
@@ -294,6 +295,9 @@ static void self_commissioning_update(void) {
       case SC_SEQUENCE_START_CALIBRATE_ABS_ENCODER:
         break;
       case SC_SEQUENCE_START_CALC_POLE_PAIRS:
+        break;
+      case SC_SEQUENCE_START_MEASURE_COGGING_TORQUE:
+        husb_com.show_cogging_torque_lut = 1;
         break;
       default:
         break;

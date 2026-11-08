@@ -212,6 +212,23 @@ static int8_t set_start_calc_pole_pairs(sfm_com_t *com, void *data) {
   return 0;
 }
 
+static int8_t set_start_measure_cogging_torque(sfm_com_t *com, void *data) {
+  (void) data;
+  if (sc_start_measure_cogging_torque(com->psc) != 0) return -1;
+  return 0;
+}
+
+// debug
+static int8_t get_cogging_current(sfm_com_t *com, void *data) {
+  *(float *)data = com->pstorage->memory.cogging_torque.current_LUT[com->cogging_current_lut_idx];
+  com->cogging_current_lut_idx++;
+  if (com->cogging_current_lut_idx >= COGGING_TORQUE_LUT_SIZE) {
+    com->plotter_line = 0;
+    com->plotter_update_ms = 10;
+  }
+  return 0;
+}
+
 /************************************************************************************************ */
 
 SFM_GETTER(get_foc_mode, *(foc_mode_t *)data = foc_get_mode(com->pfoc))
@@ -425,6 +442,11 @@ SFM_SETTER(set_trajectory_target_pos, foc_move_s_curve(com->pfoc, *(float *)data
 
 /************************************************************************************************ */
 
+SFM_GETTER(get_anti_cogging_enable, *(uint8_t *)data = (uint8_t)foc_get_cogging_current_comp_enable(com->pfoc))
+SFM_SETTER(set_anti_cogging_enable, foc_set_cogging_current_comp_enable(com->pfoc, (_Bool)*(uint8_t *)data))
+
+/************************************************************************************************ */
+
 typedef struct {
   sfm_com_read_t com_read;
   sfm_com_write_t com_write;
@@ -455,7 +477,7 @@ sfm_com_register_handler_t sfm_com_reg[] = {
   {get_Ld, set_Ld, SFM_COM_STREAM_DIS, sizeof(float)},                                      // 18
   {get_Lq, set_Lq, SFM_COM_STREAM_DIS, sizeof(float)},                                      // 19
   {get_flux_linkage, set_flux_linkage, SFM_COM_STREAM_DIS, sizeof(float)},                  // 20
-  {get_pwm_freq, set_pwm_freq, SFM_COM_STREAM_DIS, sizeof(uint32_t)},                          // 21
+  {get_pwm_freq, set_pwm_freq, SFM_COM_STREAM_DIS, sizeof(uint32_t)},                       // 21
   {get_gear_ratio, set_gear_ratio, SFM_COM_STREAM_DIS, sizeof(float)},                      // 22
   {get_limit_current, set_limit_current, SFM_COM_STREAM_DIS, sizeof(float)},                // 23
        
@@ -525,13 +547,18 @@ sfm_com_register_handler_t sfm_com_reg[] = {
   {NULL, set_trajectory_target_pos, SFM_COM_STREAM_DIS, sizeof(float)},                     // 83
 
   {NULL, set_start_calc_pole_pairs, SFM_COM_STREAM_DIS, 0},                                 // 84
+  {NULL, set_start_measure_cogging_torque, SFM_COM_STREAM_DIS, 0},                          // 85
 
-  {get_encoder_scale, set_encoder_scale, SFM_COM_STREAM_DIS, 0},                            // 85
-  {get_encoder_dir, set_encoder_dir, SFM_COM_STREAM_DIS, 0},                                // 86
-  {get_encoder_pll_bandwidth, set_encoder_pll_bandwidth, SFM_COM_STREAM_DIS, 0},            // 87
-  {get_encoder_pll_damp_ratio, set_encoder_pll_damp_ratio, SFM_COM_STREAM_DIS, 0},          // 88
+  {get_encoder_scale, set_encoder_scale, SFM_COM_STREAM_DIS, sizeof(float)},                  // 86
+  {get_encoder_dir, set_encoder_dir, SFM_COM_STREAM_DIS, sizeof(uint8_t)},                    // 87
+  {get_encoder_pll_bandwidth, set_encoder_pll_bandwidth, SFM_COM_STREAM_DIS, sizeof(float)},  // 88
+  {get_encoder_pll_damp_ratio, set_encoder_pll_damp_ratio, SFM_COM_STREAM_DIS, sizeof(float)},// 89
 
-  {get_motor_phase_dir, set_motor_phase_dir, SFM_COM_STREAM_DIS, 0},          // 89
+  {get_motor_phase_dir, set_motor_phase_dir, SFM_COM_STREAM_DIS, sizeof(uint8_t)},          // 90
+  
+  {get_anti_cogging_enable, set_anti_cogging_enable, SFM_COM_STREAM_DIS, sizeof(uint8_t)},  // 91
+
+  {get_cogging_current, NULL, SFM_COM_STREAM_ENA, sizeof(float)},                           // 92
 };
 
 const int SFM_COM_MAX = sizeof(sfm_com_reg) / sizeof(sfm_com_register_handler_t);
@@ -568,6 +595,7 @@ void sfm_com_init(sfm_com_t *com,
   com->psc = psc;
 
   com->plotter_tick = com->get_tick_ms();
+  com->plotter_update_ms = 10;
 }
 
 void sfm_com_update(sfm_com_t *com) {
@@ -576,7 +604,7 @@ void sfm_com_update(sfm_com_t *com) {
     sfm_com_handle_all_parameters(com);
   }
   else {
-    if (com->get_tick_ms() - com->plotter_tick >= 10) {
+    if (com->get_tick_ms() - com->plotter_tick >= com->plotter_update_ms) {
       com->plotter_tick = com->get_tick_ms();
       for (int i = 0; i < com->plotter_line; i++) {
         uint8_t plotter_addr = com->plotter[i].addr;
@@ -585,6 +613,14 @@ void sfm_com_update(sfm_com_t *com) {
           sfm_com_reg[plotter_addr].com_read(com, &value);
           sfm_com_send_data_plotter(com, &com->plotter[i], &value, sizeof(value));
         }
+      }
+      // debug
+      if (com->show_cogging_torque_lut) {
+        com->plotter_update_ms = 2;
+        com->plotter[0].addr = 92;
+        com->plotter_line = 1;
+        com->cogging_current_lut_idx = 0;
+        com->show_cogging_torque_lut = 0;
       }
     }
   }

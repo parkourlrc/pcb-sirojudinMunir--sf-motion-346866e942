@@ -37,6 +37,10 @@ void foc_feedback_sensor_init(foc_t *hfoc,
     hfoc->p_abs_encoder_error_comp_deg = p_abs_encoder_error_LUT;
 }
 
+void foc_cogging_comp_init(foc_t *hfoc, float *p_cogging_torque_LUT) {
+    hfoc->p_cogging_torque_comp = p_cogging_torque_LUT;
+}
+
 void foc_motor_init(foc_t *hfoc, uint8_t pole_pairs, float kv) {
 	if (hfoc == NULL || pole_pairs == 0 || kv <= 0) {
 		return;
@@ -321,6 +325,30 @@ void foc_current_limit(float *id_ref, float *iq_ref, float max_current) {
     }
 }
 
+float foc_cogging_current_update(foc_t *hfoc) {
+    float cff = 0;
+    if (hfoc->cogging_current_comp_enable &&
+        hfoc->foc_mode == FOC_MODE_SENSORED &&
+        hfoc->p_cogging_torque_comp) {
+            
+        float lut_idx_f = (hfoc->m_angle_deg_comp / 360.0f) * (float)COGGING_TORQUE_LUT_SIZE;
+        lut_idx_f = fmodf(lut_idx_f, COGGING_TORQUE_LUT_SIZE);
+        if (lut_idx_f < 0.0f) {
+            lut_idx_f += COGGING_TORQUE_LUT_SIZE;
+        }
+        int idx0 = (int)lut_idx_f;
+        int idx1 = (idx0 + 1) % COGGING_TORQUE_LUT_SIZE;
+        float frac = lut_idx_f - (float)idx0;
+        float v0 = hfoc->p_cogging_torque_comp[idx0];
+        float v1 = hfoc->p_cogging_torque_comp[idx1];
+
+        float delta = v1 - v0;
+
+        cff = v0 + delta * frac;
+    }
+    return cff;
+}
+
 void foc_voltage_control_update(foc_t *hfoc) {
     if (hfoc->motor_mode != MOTOR_MODE_VOLTAGE_CONTROL) return;
 
@@ -370,6 +398,9 @@ void foc_current_control_update(foc_t *hfoc, float Ts) {
 
     // Hard limit references
     foc_current_limit(&id_ref, &iq_ref, hfoc->max_current);
+
+    // cogging current compensation
+    iq_ref += foc_cogging_current_update(hfoc);
 
     // get currents
     motor_calculate_current(&hfoc->motor);
@@ -748,4 +779,12 @@ float foc_get_position_set_point(foc_t *hfoc) {
 
 float foc_get_actual_e_rad(foc_t *hfoc) {
     return hfoc->encoder_e_angle_rad;
+}
+
+void foc_set_cogging_current_comp_enable(foc_t *hfoc, _Bool enable) {
+    hfoc->cogging_current_comp_enable = enable;
+}
+
+_Bool foc_get_cogging_current_comp_enable(foc_t *hfoc) {
+    return hfoc->cogging_current_comp_enable;
 }

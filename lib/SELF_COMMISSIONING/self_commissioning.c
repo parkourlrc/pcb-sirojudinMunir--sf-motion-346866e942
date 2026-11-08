@@ -84,6 +84,25 @@ int sc_start_calc_pole_pairs(self_commissioning_t *sc) {
     return 0;
 }
 
+int sc_start_measure_cogging_torque(self_commissioning_t *sc) {
+    if (sc->signal_flag) return -1;
+    sc->signal_t = 0;
+    sc->last_signal_t = 0;
+    sc->signal_delay_t = 0.5f/FOC_TS;
+    sc->cogging_torque_idx = 0;
+    sc->motor_move_dir = 0;
+    if (sc->p_foc->p_cogging_torque_comp) {
+        for (int i = 0; i < COGGING_TORQUE_LUT_SIZE; i++) {
+            sc->p_foc->p_cogging_torque_comp[i] = 0;
+        }
+    }
+    foc_set_cogging_current_comp_enable(sc->p_foc, 0);
+    foc_set_motor_mode(sc->p_foc, MOTOR_MODE_POSITION_CONTROL);
+    sc->seq = SC_SEQUENCE_START_MEASURE_COGGING_TORQUE;
+    sc->signal_flag = 1;
+    return 0;
+}
+
 float sc_estimate_resistance(self_commissioning_t *sc) {
     float mean_vd = 0, mean_id = 0;
 
@@ -292,6 +311,68 @@ void sc_calc_pole_pairs_update(self_commissioning_t *sc) {
     sc->signal_t++;
 }
 
+
+void sc_calc_cogging_torque(self_commissioning_t *sc) {
+    float mech_continuous_deg = sc->p_foc->actual_angle;
+    float *cogging_lut = sc->p_foc->p_cogging_torque_comp;
+
+    if (sc->signal_t < sc->signal_delay_t) {
+        sc->start_mech_angle_deg = mech_continuous_deg;
+        sc->mech_angle_deg_ref = mech_continuous_deg;
+    }
+    else {
+        if (sc->signal_t - sc->last_signal_t >= 2000) {
+            sc->last_signal_t = sc->signal_t;
+
+            float angle = fmodf(sc->p_foc->m_angle_deg_comp, 360.0f);
+            if (angle < 0.0f) {
+                angle += 360.0f;
+            }
+
+            int idx = (int)(angle * ((float)COGGING_TORQUE_LUT_SIZE / 360.0f));
+            if (idx >= COGGING_TORQUE_LUT_SIZE) {
+                idx = 0;
+            }
+
+            if (sc->motor_move_dir == 0) {
+                if (cogging_lut) {
+                    cogging_lut[idx] = sc->p_foc->iq;
+                }
+                if (sc->cogging_torque_idx < COGGING_TORQUE_LUT_SIZE) {
+                    sc->mech_angle_deg_ref = sc->start_mech_angle_deg + 
+                                            ((float)sc->cogging_torque_idx / (float)COGGING_TORQUE_LUT_SIZE * 360.0f);
+                    sc->cogging_torque_idx++;
+                }
+                else {
+                    sc->motor_move_dir = 1;
+                }
+            }
+            else {
+                if (cogging_lut) {
+                    cogging_lut[idx] = (cogging_lut[idx] + sc->p_foc->iq) * 0.5f;
+                }
+                if (sc->cogging_torque_idx >= 0) {
+                    sc->mech_angle_deg_ref = sc->start_mech_angle_deg + 
+                                            ((float)sc->cogging_torque_idx / (float)COGGING_TORQUE_LUT_SIZE * 360.0f);
+                    sc->cogging_torque_idx--;
+                }
+                else {
+                    if (cogging_lut) {
+                        circular_moving_average(cogging_lut, COGGING_TORQUE_LUT_SIZE, 2, 2);
+                    }
+                    sc->signal_flag = 0;
+                    sc->measure_done_flag = 1;
+                    return;
+                }
+            }
+
+        }
+    }
+
+    foc_set_position_set_point(sc->p_foc, sc->mech_angle_deg_ref);
+    sc->signal_t++;
+}
+
 void sc_calibrate_abs_encoder_update(self_commissioning_t *sc) {
     float vd = 1.8f;
     float vq = 0.0f;
@@ -388,6 +469,10 @@ void sc_update(self_commissioning_t *sc, float Ts) {
         }
         case SC_SEQUENCE_START_CALC_POLE_PAIRS: {
             sc_calc_pole_pairs_update(sc);
+            break;
+        }
+        case SC_SEQUENCE_START_MEASURE_COGGING_TORQUE: {
+            sc_calc_cogging_torque(sc);
             break;
         }
         default:

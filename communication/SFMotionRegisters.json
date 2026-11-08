@@ -639,6 +639,70 @@
       "read": false,
       "write": true,
       "streaming": false
+    },
+    {
+      "address": 85,
+      "name": "start_measure_cogging_torque",
+      "format": null,
+      "read": false,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 86,
+      "name": "encoder_scale",
+      "format": "<f",
+      "read": true,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 87,
+      "name": "encoder_dir",
+      "format": "<B",
+      "read": true,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 88,
+      "name": "encoder_pll_bandwidth",
+      "format": "<f",
+      "read": true,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 89,
+      "name": "encoder_pll_damp_ratio",
+      "format": "<f",
+      "read": true,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 90,
+      "name": "motor_phase_dir",
+      "format": "<B",
+      "read": true,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 91,
+      "name": "anti_cogging_enable",
+      "format": "<B",
+      "read": true,
+      "write": true,
+      "streaming": false
+    },
+    {
+      "address": 92,
+      "name": "cogging_current",
+      "format": null,
+      "read": false,
+      "write": false,
+      "streaming": true
     }
   ],
   "event": [

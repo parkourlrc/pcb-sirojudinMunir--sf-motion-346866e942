@@ -59,6 +59,7 @@ typedef struct {
   uint8_t plotter_line;
 
   uint32_t plotter_tick;
+  uint32_t plotter_update_ms;
   foc_t *pfoc;
   storage_t *pstorage;
   self_commissioning_t *psc;
@@ -67,6 +68,10 @@ typedef struct {
   int (*send_data)(uint8_t*, uint16_t);
   uint32_t (*get_tick_ms)(void);
   void (*system_reset)(void);
+
+  // debug
+  _Bool show_cogging_torque_lut;
+  int cogging_current_lut_idx;
 }sfm_com_t;
 
 typedef int8_t (*sfm_com_read_t)(sfm_com_t *com, void *data);

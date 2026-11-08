@@ -18,6 +18,7 @@ typedef enum {
 }sensor_dir_t;
 
 typedef struct {
+    uint8_t spi_tx_buffer[2];
     uint8_t spi_rx_buffer[2];
     
     int32_t count_raw;

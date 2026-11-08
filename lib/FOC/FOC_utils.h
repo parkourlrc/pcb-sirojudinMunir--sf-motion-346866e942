@@ -23,11 +23,7 @@
 #include "trajectory.h"
 
 #define ERROR_LUT_SIZE (1024)
-
-#define MAG_CAL_RES (1024*2)
-#define MAG_CAL_STEP ((TWO_PI * POLE_PAIR) / (float)MAG_CAL_RES)
-
-#define SPEED_WINDOW_SIZE 16
+#define COGGING_TORQUE_LUT_SIZE (1024)
 
 #if DEBUG_HFI
 extern float param1_debug_buff[MAX_SAMPLE_BUFF];
@@ -37,14 +33,13 @@ extern float param4_debug_buff[MAX_SAMPLE_BUFF];
 #endif
 
 typedef enum {
+	MOTOR_MODE_DISABLE,
 	MOTOR_MODE_TORQUE_CONTROL,
 	MOTOR_MODE_SPEED_CONTROL,
 	MOTOR_MODE_POSITION_CONTROL,
-	MOTOR_MODE_CALIBRATION_ENCODER,
+	MOTOR_MODE_IMPEDANCE_CONTROL,
 	MOTOR_MODE_AUDIO,
 	MOTOR_MODE_VOLTAGE_CONTROL,
-	MOTOR_MODE_DISABLE,
-	MOTOR_MODE_IMPEDANCE_CONTROL,
 }motor_mode_t;
 
 typedef enum {
@@ -167,6 +162,9 @@ typedef struct {
 	_Bool collect_sample_flag;
 
 	float *p_abs_encoder_error_comp_deg; // ERROR_LUT_SIZE
+	float *p_cogging_torque_comp; // COGGING_TORQUE_LUT_SIZE
+
+	_Bool cogging_current_comp_enable;
 
 	void (*enable_motor)(void);
 	void (*disable_motor)(void);
@@ -182,6 +180,7 @@ void foc_feedback_sensor_init(foc_t *hfoc,
 							  float (*encoder_get_continuous_mech_degre)(void),
 							  float (*get_rpm)(void), 
 							  float *p_abs_encoder_error_LUT);
+void foc_cogging_comp_init(foc_t *hfoc, float *p_cogging_torque_LUT);
 void foc_motor_init(foc_t *hfoc, uint8_t pole_pairs, float kv);
 void foc_gear_reducer_init(foc_t *hfoc, float ratio);
 void foc_set_limit_current(foc_t *hfoc, float i_limit);
@@ -232,6 +231,8 @@ float foc_get_current_set_point(foc_t *hfoc);
 float foc_get_speed_set_point(foc_t *hfoc);
 float foc_get_position_set_point(foc_t *hfoc); 
 float foc_get_actual_e_rad(foc_t *hfoc);
+void foc_set_cogging_current_comp_enable(foc_t *hfoc, _Bool enable);
+_Bool foc_get_cogging_current_comp_enable(foc_t *hfoc);
 
 int8_t foc_move_s_curve(foc_t *hfoc, float target_pos);
 

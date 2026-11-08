@@ -9,7 +9,7 @@ app.setStyle('Fusion')
 pg.setConfigOptions(antialias=True, useOpenGL=True)
 
 plotter = LivePlotter(
-    max_points=1000,
+    max_points=1024,
     port=None,  # No auto-connect
     baudrate=115200,
     node_id=[0x00]

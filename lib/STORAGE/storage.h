@@ -89,6 +89,11 @@ typedef struct {
 }storage_encoder_config_t;
 
 typedef struct {
+    _Bool enable;
+    float current_LUT[COGGING_TORQUE_LUT_SIZE];
+}storage_cogging_torque_t;
+
+typedef struct {
     uint8_t valid_SOF;
 
     storage_general_t general;
@@ -103,6 +108,7 @@ typedef struct {
     storage_current_sens_t current_sens;
     storage_voltage_sens_t voltage_sens;
     storage_encoder_config_t encoder_config;
+    storage_cogging_torque_t cogging_torque;
 
     uint8_t valid_EOF;
 }memory_t;

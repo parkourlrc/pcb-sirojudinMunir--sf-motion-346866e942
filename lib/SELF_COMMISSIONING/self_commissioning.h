@@ -5,6 +5,7 @@
 #include "math.h"
 #include "FOC_math.h"
 #include "FOC_utils.h"
+#include "moving_average.h"
 
 #define MAX_DATA_ACQ_BUFFER  (256)
 
@@ -14,6 +15,7 @@ typedef enum {
     SC_SEQUENCE_START_MEASURE_LQ,
     SC_SEQUENCE_START_CALIBRATE_ABS_ENCODER,
     SC_SEQUENCE_START_CALC_POLE_PAIRS,
+    SC_SEQUENCE_START_MEASURE_COGGING_TORQUE,
 }sc_sequence_t;
 
 typedef struct {
@@ -39,6 +41,11 @@ typedef struct {
     float e_rad_increment;
     uint8_t estimate_pole_pairs;
     float encoder_last_pos_deg;
+
+    float start_mech_angle_deg;
+    float mech_angle_deg_ref;
+    int cogging_torque_idx;
+    _Bool motor_move_dir;
 }self_commissioning_t;
 
 void sc_init(self_commissioning_t *sc, foc_t *hfoc);
@@ -47,6 +54,7 @@ int sc_start_measure_motor_Ld(self_commissioning_t *sc);
 int sc_start_measure_motor_Lq(self_commissioning_t *sc);
 int sc_start_calibrate_abs_encoder(self_commissioning_t *sc);
 int sc_start_calc_pole_pairs(self_commissioning_t *sc);
+int sc_start_measure_cogging_torque(self_commissioning_t *sc);
 void sc_update(self_commissioning_t *sc, float Ts);
 _Bool sc_is_measure_done(self_commissioning_t *sc);
 sc_sequence_t sc_get_seq(self_commissioning_t *sc);
